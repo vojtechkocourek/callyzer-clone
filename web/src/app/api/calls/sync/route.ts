@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readSessionFromToken } from "@/lib/auth";
-import { bulkInsertCalls } from "@/lib/store";
+import { bulkInsertCalls, touchLastSync } from "@/lib/store";
+import { normalizePhone } from "@/lib/phone";
 import type { CallType } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
       continue;
     }
     cleaned.push({
-      phoneNumber: raw.phoneNumber,
+      phoneNumber: normalizePhone(raw.phoneNumber),
       contactName: typeof raw.contactName === "string" ? raw.contactName : null,
       type: raw.type,
       startedAt: raw.startedAt,
@@ -46,5 +47,7 @@ export async function POST(req: NextRequest) {
     employeeId: session.userId,
     records: cleaned,
   });
+  // Update the rep's last-sync timestamp regardless of how many were added.
+  await touchLastSync(session.userId);
   return NextResponse.json({ added, skipped: skipped + invalid });
 }

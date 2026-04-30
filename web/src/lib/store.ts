@@ -18,6 +18,7 @@ function rowToEmployee(r: typeof users.$inferSelect): Employee {
     teamId: r.teamId,
     active: r.active,
     joinedAt: dt(r.joinedAt),
+    lastSyncedAt: r.lastSyncedAt ? dt(r.lastSyncedAt) : null,
   };
 }
 
@@ -358,4 +359,41 @@ export async function setMissedReturned(
       target: [callFollowups.employeeId, callFollowups.phoneNumber],
       set: { manuallyReturnedAt: returnedAt, updatedAt: new Date() },
     });
+}
+
+
+// ---------------- Last-sync tracking ----------------
+
+export async function touchLastSync(userId: string) {
+  await requireDb()
+    .update(users)
+    .set({ lastSyncedAt: new Date() })
+    .where(eq(users.id, userId));
+}
+
+// ---------------- Team mutations ----------------
+
+export async function updateTeam(
+  id: string,
+  patch: Partial<{ name: string; branch: string; managerId: string | null }>,
+): Promise<Team | null> {
+  const [row] = await requireDb()
+    .update(teams)
+    .set(patch)
+    .where(eq(teams.id, id))
+    .returning();
+  return row ? rowToTeam(row) : null;
+}
+
+export async function deleteTeam(id: string): Promise<{ ok: boolean; reason?: string }> {
+  // Refuse to delete a team that still has members.
+  const memberCount = await requireDb()
+    .select()
+    .from(users)
+    .where(eq(users.teamId, id));
+  if (memberCount.length > 0) {
+    return { ok: false, reason: `Team has ${memberCount.length} members. Reassign or remove them first.` };
+  }
+  await requireDb().delete(teams).where(eq(teams.id, id));
+  return { ok: true };
 }

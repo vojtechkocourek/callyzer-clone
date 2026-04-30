@@ -21,6 +21,7 @@ export interface Employee {
   teamId: string | null;
   active: boolean;
   joinedAt: string; // ISO datetime
+  lastSyncedAt: string | null; // ISO datetime, null = never synced
 }
 
 export interface CallRecord {

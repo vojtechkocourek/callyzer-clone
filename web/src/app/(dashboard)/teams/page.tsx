@@ -5,6 +5,7 @@ import { visibleEmployees } from "@/lib/scope";
 import { fmtDuration, summarize } from "@/lib/analytics";
 import { redirect } from "next/navigation";
 import TeamCreateForm from "./TeamCreateForm";
+import TeamCardActions from "./TeamCardActions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +22,14 @@ export default async function TeamsPage() {
   const teams = allTeams.filter((t) => session.role === "admin" || visibleTeamIds.has(t.id));
   const empById = new Map(all.map((e) => [e.id, e]));
   const managers = all.filter((e) => e.role === "manager" || e.role === "admin");
+  const isAdmin = session.role === "admin";
 
   return (
     <>
       <Header title="Teams" subtitle={`${teams.length} team${teams.length === 1 ? "" : "s"}`} />
       <div className="p-4 sm:p-6 space-y-4">
-        {session.role === "admin" && (
-          <TeamCreateForm
-            managers={managers.map((m) => ({ id: m.id, name: m.name }))}
-          />
+        {isAdmin && (
+          <TeamCreateForm managers={managers.map((m) => ({ id: m.id, name: m.name }))} />
         )}
 
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -40,9 +40,17 @@ export default async function TeamsPage() {
             const manager = empById.get(t.managerId ?? "");
             return (
               <div key={t.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
-                <div>
-                  <div className="text-xs text-slate-500">{t.branch || "—"}</div>
-                  <h3 className="font-semibold text-slate-900">{t.name}</h3>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-xs text-slate-500">{t.branch || "—"}</div>
+                    <h3 className="font-semibold text-slate-900">{t.name}</h3>
+                  </div>
+                  {isAdmin && (
+                    <TeamCardActions
+                      team={{ id: t.id, name: t.name, branch: t.branch, managerId: t.managerId }}
+                      managers={managers.map((m) => ({ id: m.id, name: m.name }))}
+                    />
+                  )}
                 </div>
                 <div className="text-sm text-slate-600">
                   Manager: <span className="text-slate-900">{manager?.name ?? "—"}</span>
