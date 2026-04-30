@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Phone,
+  PhoneOff,
   Users,
   Building2,
   FileBarChart2,
@@ -18,6 +19,7 @@ import clsx from "clsx";
 const items = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/call-logs", label: "Call Logs", icon: Phone },
+  { href: "/missed-calls", label: "Missed Calls", icon: PhoneOff },
   { href: "/employees", label: "Employees", icon: Users },
   { href: "/teams", label: "Teams", icon: Building2 },
   { href: "/reports", label: "Reports", icon: FileBarChart2 },

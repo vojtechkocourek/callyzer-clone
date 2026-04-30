@@ -3,7 +3,7 @@
  */
 import { and, desc, eq, gte, lte, inArray } from "drizzle-orm";
 import { requireDb } from "@/db";
-import { calls, sessions, teams, users } from "@/db/schema";
+import { callFollowups, calls, sessions, teams, users } from "@/db/schema";
 import type { CallRecord, CallType, Employee, Team } from "./types";
 
 const dt = (v: Date | string) => (v instanceof Date ? v.toISOString() : v);
@@ -229,4 +229,133 @@ export async function getSessionRow(token: string) {
 
 export async function deleteSessionRow(token: string) {
   await requireDb().delete(sessions).where(eq(sessions.token, token));
+}
+
+
+// ---------------- Missed-call follow-ups ----------------
+
+export const MISSED_SLA_HOURS = 24;
+
+export interface MissedCallGroup {
+  employeeId: string;
+  employeeName: string;
+  phoneNumber: string;
+  contactName: string | null;
+  latestMissedAt: string;
+  missedCount: number;
+  returnedAt: string | null;
+  returnedVia: "auto" | "manual" | null;
+  // Hours between the latest miss and either the return or now (clamped to 0).
+  ageHours: number;
+}
+
+export async function listMissedCallGroups(args: {
+  employeeIds: string[];
+  windowDays?: number;
+}): Promise<MissedCallGroup[]> {
+  if (args.employeeIds.length === 0) return [];
+  const since = new Date(Date.now() - (args.windowDays ?? 30) * 24 * 3600 * 1000);
+
+  const allCalls = await requireDb()
+    .select()
+    .from(calls)
+    .where(and(inArray(calls.employeeId, args.employeeIds), gte(calls.startedAt, since)));
+
+  const overrides = await requireDb()
+    .select()
+    .from(callFollowups)
+    .where(inArray(callFollowups.employeeId, args.employeeIds));
+  const overrideMap = new Map<string, Date | null>();
+  for (const o of overrides) {
+    overrideMap.set(`${o.employeeId}|${o.phoneNumber}`, o.manuallyReturnedAt);
+  }
+
+  const employees = await listEmployees();
+  const empName = new Map(employees.map((e) => [e.id, e.name]));
+
+  // Group by (employeeId, phoneNumber); track misses + outgoing
+  type Group = {
+    employeeId: string;
+    phoneNumber: string;
+    contactName: string | null;
+    misses: Date[];
+    outgoing: Date[];
+  };
+  const groups = new Map<string, Group>();
+  for (const c of allCalls) {
+    if (c.type !== "missed" && c.type !== "rejected" && c.type !== "outgoing") continue;
+    const key = `${c.employeeId}|${c.phoneNumber}`;
+    let g = groups.get(key);
+    if (!g) {
+      g = {
+        employeeId: c.employeeId,
+        phoneNumber: c.phoneNumber,
+        contactName: c.contactName,
+        misses: [],
+        outgoing: [],
+      };
+      groups.set(key, g);
+    }
+    if (c.type === "outgoing") g.outgoing.push(c.startedAt);
+    else g.misses.push(c.startedAt);
+    if (!g.contactName && c.contactName) g.contactName = c.contactName;
+  }
+
+  const now = Date.now();
+  const out: MissedCallGroup[] = [];
+  for (const g of groups.values()) {
+    if (g.misses.length === 0) continue; // ignore groups with only outgoing
+    const latestMiss = g.misses.reduce((a, b) => (a > b ? a : b));
+    // Earliest outgoing strictly after the latest miss
+    const auto = g.outgoing
+      .filter((d) => d > latestMiss)
+      .reduce<Date | null>((a, b) => (a === null || b < a ? b : a), null);
+    const override = overrideMap.get(`${g.employeeId}|${g.phoneNumber}`) ?? null;
+    let returnedAt: Date | null = null;
+    let via: "auto" | "manual" | null = null;
+    if (override && override > latestMiss) {
+      returnedAt = override;
+      via = "manual";
+    } else if (auto) {
+      returnedAt = auto;
+      via = "auto";
+    }
+    const refTime = (returnedAt ?? new Date()).getTime();
+    const ageHours = Math.max(0, (refTime - latestMiss.getTime()) / 3600_000);
+    out.push({
+      employeeId: g.employeeId,
+      employeeName: empName.get(g.employeeId) ?? g.employeeId,
+      phoneNumber: g.phoneNumber,
+      contactName: g.contactName,
+      latestMissedAt: latestMiss.toISOString(),
+      missedCount: g.misses.length,
+      returnedAt: returnedAt?.toISOString() ?? null,
+      returnedVia: via,
+      ageHours,
+    });
+  }
+
+  // Sort: pending oldest first, then returned newest first
+  out.sort((a, b) => {
+    const aP = a.returnedAt === null ? 1 : 0;
+    const bP = b.returnedAt === null ? 1 : 0;
+    if (aP !== bP) return bP - aP; // pending(1) before returned(0)
+    if (aP === 1) return a.latestMissedAt.localeCompare(b.latestMissedAt); // oldest first
+    return b.latestMissedAt.localeCompare(a.latestMissedAt); // newest first
+  });
+  return out;
+}
+
+export async function setMissedReturned(
+  employeeId: string,
+  phoneNumber: string,
+  returnedAt: Date | null,
+) {
+  await requireDb()
+    .insert(callFollowups)
+    .values({ employeeId, phoneNumber, manuallyReturnedAt: returnedAt, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: [callFollowups.employeeId, callFollowups.phoneNumber],
+      set: { manuallyReturnedAt: returnedAt, updatedAt: new Date() },
+    });
 }

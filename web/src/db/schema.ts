@@ -3,6 +3,7 @@ import {
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -69,6 +70,25 @@ export const sessions = pgTable("sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Tracks manual "this missed call group has been returned" overrides.
+// One row per (employee, phoneNumber). Auto-detection from outgoing calls
+// runs separately; this table only matters when a rep returned a call from
+// somewhere the call log doesn't see (different phone, WhatsApp, etc.).
+export const callFollowups = pgTable(
+  "call_followups",
+  {
+    employeeId: text("employee_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    phoneNumber: text("phone_number").notNull(),
+    manuallyReturnedAt: timestamp("manually_returned_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.employeeId, t.phoneNumber] }),
+  }),
+);
+
 export type Team = typeof teams.$inferSelect;
 export type NewTeam = typeof teams.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -76,3 +96,4 @@ export type NewUser = typeof users.$inferInsert;
 export type CallRecord = typeof calls.$inferSelect;
 export type NewCallRecord = typeof calls.$inferInsert;
 export type SessionRow = typeof sessions.$inferSelect;
+export type CallFollowup = typeof callFollowups.$inferSelect;
