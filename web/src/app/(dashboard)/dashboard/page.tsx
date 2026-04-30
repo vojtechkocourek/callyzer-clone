@@ -31,7 +31,7 @@ export default async function DashboardPage() {
   return (
     <>
       <Header title="Dashboard" subtitle={subtitle} />
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard label="Total calls" value={kpi.totalCalls.toLocaleString()} icon={Phone} tone="brand" />
           <KpiCard label="Talk time" value={fmtDuration(kpi.totalTalkSec)} icon={Timer} tone="emerald" />
@@ -57,7 +57,8 @@ export default async function DashboardPage() {
           <div className="lg:col-span-2"><TalkTimeChart data={series} /></div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <h3 className="font-medium text-slate-900 mb-2">Top performers</h3>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full text-sm min-w-[600px]">
               <thead className="text-xs text-slate-500 text-left">
                 <tr>
                   <th className="py-1.5 font-medium">Employee</th>
@@ -78,6 +79,7 @@ export default async function DashboardPage() {
                 ))}
               </tbody>
             </table>
+          </div>
           </div>
         </div>
       </div>

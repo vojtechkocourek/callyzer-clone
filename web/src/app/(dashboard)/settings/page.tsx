@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   return (
     <>
       <Header title="Settings" subtitle="Profile and Android companion setup" />
-      <div className="p-6 grid md:grid-cols-2 gap-4">
+      <div className="p-4 sm:p-6 grid md:grid-cols-2 gap-4">
         <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
           <h3 className="font-medium text-slate-900">My profile</h3>
           <Field label="Name" value={me.name} />

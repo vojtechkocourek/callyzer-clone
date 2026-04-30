@@ -23,7 +23,7 @@ export default async function TeamsPage() {
   return (
     <>
       <Header title="Teams" subtitle={`${teams.length} team${teams.length === 1 ? "" : "s"}`} />
-      <div className="p-6 grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="p-4 sm:p-6 grid md:grid-cols-2 xl:grid-cols-3 gap-4">
         {teams.map((t) => {
           const members = employees.filter((e) => e.teamId === t.id);
           const teamCalls = calls.filter((c) => members.some((m) => m.id === c.employeeId));

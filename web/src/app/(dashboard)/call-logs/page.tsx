@@ -50,7 +50,7 @@ export default async function CallLogsPage({ searchParams }: { searchParams: Sea
   return (
     <>
       <Header title="Call Logs" subtitle={`${rows.length.toLocaleString()} matching records`} />
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         <form className="flex flex-wrap gap-2 items-end bg-white p-3 border border-slate-200 rounded-xl">
           <label className="text-xs text-slate-500">
             Employee
@@ -93,7 +93,8 @@ export default async function CallLogsPage({ searchParams }: { searchParams: Sea
         </form>
 
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full text-sm min-w-[600px]">
             <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
               <tr>
                 <th className="text-left font-medium px-4 py-2">When</th>
@@ -120,6 +121,7 @@ export default async function CallLogsPage({ searchParams }: { searchParams: Sea
               ))}
             </tbody>
           </table>
+          </div>
           {rows.length > sliced.length && (
             <div className="text-xs text-slate-400 px-4 py-2 border-t border-slate-100">
               Showing first {sliced.length} of {rows.length.toLocaleString()} — refine filters to narrow.

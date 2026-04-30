@@ -23,13 +23,14 @@ export default async function EmployeesPage() {
   return (
     <>
       <Header title="Employees" subtitle={`${employees.length} people in scope`} />
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         {session.role === "admin" && (
           <EmployeeCreateForm teams={teams.map((t) => ({ id: t.id, name: t.name }))} />
         )}
 
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full text-sm min-w-[600px]">
             <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
               <tr>
                 <th className="text-left font-medium px-4 py-2">Name</th>
@@ -67,6 +68,7 @@ export default async function EmployeesPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </>

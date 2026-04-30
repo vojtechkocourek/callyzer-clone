@@ -37,7 +37,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
   return (
     <>
       <Header title="Reports" subtitle="Slice the data, then export to CSV" />
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         <form className="bg-white p-3 border border-slate-200 rounded-xl flex flex-wrap gap-2 items-end">
           <label className="text-xs text-slate-500">
             From
@@ -85,7 +85,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
 
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-200 font-medium">Per-employee summary</div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full text-sm min-w-[600px]">
             <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
               <tr>
                 <th className="text-left font-medium px-4 py-2">Employee</th>
@@ -110,6 +111,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </>
