@@ -143,12 +143,26 @@ export interface CallFilter {
   limit?: number;
 }
 
+
+// Treat a date input as the start of that day in UTC (00:00:00.000Z).
+function parseFromDate(v: string): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(v + "T00:00:00.000Z");
+  return new Date(v);
+}
+
+// Treat a date input as the end of that day in UTC (23:59:59.999Z), so
+// the picker's "To = 30.04" includes everything that happened that day.
+function parseToDate(v: string): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(v + "T23:59:59.999Z");
+  return new Date(v);
+}
+
 export async function listCalls(filter: CallFilter = {}): Promise<CallRecord[]> {
   const conds = [];
   if (filter.employeeId) conds.push(eq(calls.employeeId, filter.employeeId));
   if (filter.type) conds.push(eq(calls.type, filter.type));
-  if (filter.from) conds.push(gte(calls.startedAt, new Date(filter.from)));
-  if (filter.to) conds.push(lte(calls.startedAt, new Date(filter.to)));
+  if (filter.from) conds.push(gte(calls.startedAt, parseFromDate(filter.from)));
+  if (filter.to) conds.push(lte(calls.startedAt, parseToDate(filter.to)));
   if (filter.employeeIds && filter.employeeIds.length > 0) {
     conds.push(inArray(calls.employeeId, filter.employeeIds));
   }
