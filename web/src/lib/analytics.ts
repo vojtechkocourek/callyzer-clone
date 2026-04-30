@@ -70,8 +70,11 @@ export interface LeaderRow {
   name: string;
   totalCalls: number;
   talkSec: number;
+  incoming: number;
   outgoing: number;
   missed: number;
+  rejected: number;
+  avgDurationSec: number;
 }
 
 export function leaderboard(calls: CallRecord[], employees: Employee[]): LeaderRow[] {
@@ -82,8 +85,11 @@ export function leaderboard(calls: CallRecord[], employees: Employee[]): LeaderR
       name: e.name,
       totalCalls: 0,
       talkSec: 0,
+      incoming: 0,
       outgoing: 0,
       missed: 0,
+      rejected: 0,
+      avgDurationSec: 0,
     });
   }
   for (const c of calls) {
@@ -91,8 +97,15 @@ export function leaderboard(calls: CallRecord[], employees: Employee[]): LeaderR
     if (!row) continue;
     row.totalCalls++;
     row.talkSec += c.durationSec;
-    if (c.type === "outgoing") row.outgoing++;
-    if (c.type === "missed") row.missed++;
+    if (c.type === "incoming") row.incoming++;
+    else if (c.type === "outgoing") row.outgoing++;
+    else if (c.type === "missed") row.missed++;
+    else if (c.type === "rejected") row.rejected++;
+  }
+  // Compute averages from connected (incoming + outgoing) calls only.
+  for (const r of byEmp.values()) {
+    const connected = r.incoming + r.outgoing;
+    r.avgDurationSec = connected > 0 ? Math.round(r.talkSec / connected) : 0;
   }
   return Array.from(byEmp.values())
     .filter((r) => r.totalCalls > 0)

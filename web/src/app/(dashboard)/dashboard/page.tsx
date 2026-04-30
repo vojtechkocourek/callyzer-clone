@@ -25,7 +25,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const teams = await listTeams();
   let employees = visibleEmployees(all, session);
 
-  // Apply team / employee filters from URL
   if (searchParams.teamId) {
     employees = employees.filter((e) => e.teamId === searchParams.teamId);
   }
@@ -42,9 +41,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
   const kpi = summarize(calls);
   const series = dailySeries(calls, 14);
-  const leaders = leaderboard(calls, employees).slice(0, 5);
+  // Per-employee overview, sorted by total calls descending
+  const overview = leaderboard(calls, employees).sort((a, b) => b.totalCalls - a.totalCalls);
 
-  // Visible team list (admins see all, managers/employees see what's in their scope)
   const scopedTeamIds = new Set(employees.map((e) => e.teamId).filter(Boolean) as string[]);
   const teamOptions =
     session.role === "admin" ? teams : teams.filter((t) => scopedTeamIds.has(t.id));
@@ -120,33 +119,48 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           />
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2"><TalkTimeChart data={series} /></div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <h3 className="font-medium text-slate-900 mb-2">Top performers</h3>
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <table className="w-full text-sm min-w-[400px]">
-                <thead className="text-xs text-slate-500 text-left">
-                  <tr>
-                    <th className="py-1.5 font-medium">Employee</th>
-                    <th className="py-1.5 font-medium text-right">Calls</th>
-                    <th className="py-1.5 font-medium text-right">Talk</th>
+        <TalkTimeChart data={series} />
+
+        {/* Per-employee overview */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+            <h3 className="font-medium text-slate-900">Employees overview</h3>
+            <span className="text-xs text-slate-500">{overview.length} {overview.length === 1 ? "person" : "people"} in scope</span>
+          </div>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full text-sm min-w-[720px]">
+              <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
+                <tr>
+                  <th className="text-left font-medium px-4 py-2">Employee</th>
+                  <th className="text-right font-medium px-4 py-2">Total</th>
+                  <th className="text-right font-medium px-4 py-2">Incoming</th>
+                  <th className="text-right font-medium px-4 py-2">Outgoing</th>
+                  <th className="text-right font-medium px-4 py-2">Missed</th>
+                  <th className="text-right font-medium px-4 py-2">Avg duration</th>
+                  <th className="text-right font-medium px-4 py-2">Total duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overview.length === 0 && (
+                  <tr><td colSpan={7} className="text-center text-slate-400 py-12">No data for this slice.</td></tr>
+                )}
+                {overview.map((r) => (
+                  <tr key={r.employeeId} className="border-t border-slate-100">
+                    <td className="px-4 py-2 font-medium">{r.name}</td>
+                    <td className="px-4 py-2 text-right">{r.totalCalls.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-right">{r.incoming.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-right">{r.outgoing.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-right">
+                      <span className={r.missed > 0 ? "text-amber-700" : ""}>
+                        {r.missed.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">{fmtDuration(r.avgDurationSec)}</td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">{fmtDuration(r.talkSec)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {leaders.length === 0 && (
-                    <tr><td colSpan={3} className="py-6 text-center text-slate-400">No data yet</td></tr>
-                  )}
-                  {leaders.map((r) => (
-                    <tr key={r.employeeId} className="border-t border-slate-100">
-                      <td className="py-2">{r.name}</td>
-                      <td className="py-2 text-right">{r.totalCalls}</td>
-                      <td className="py-2 text-right">{fmtDuration(r.talkSec)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
