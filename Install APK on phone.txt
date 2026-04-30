@@ -1,0 +1,65 @@
+HOW TO INSTALL THE CALLYZER APK ON YOUR ANDROID PHONE
+======================================================
+
+You'll have a file called `callyzer-clone.apk` in the `apk\` folder
+next to this file. Get it onto your phone and tap to install.
+
+PICK ONE OF THESE METHODS
+-------------------------
+
+Method A - USB cable (fastest if you have one)
+  1. Plug your phone into the PC.
+  2. On the phone, swipe down the notifications, tap the USB
+     notification, and pick "File transfer" (MTP) mode.
+  3. In Windows File Explorer, your phone shows up like a drive.
+     Open it -> Internal Storage -> Download.
+  4. Drag `callyzer-clone.apk` into that folder.
+  5. On the phone, open the Files app, find `callyzer-clone.apk`
+     in Downloads, and tap it.
+
+Method B - Email or messaging app
+  1. Email `callyzer-clone.apk` to yourself, or send it through
+     WhatsApp / Telegram / Signal to your own number.
+  2. Open the email/chat on your phone and tap the attachment.
+  3. Tap "Download" if it asks, then tap the file.
+
+Method C - Cloud (Google Drive / OneDrive)
+  1. Upload `callyzer-clone.apk` to Drive or OneDrive on your PC.
+  2. On the phone, open the same Drive/OneDrive app.
+  3. Tap the .apk and choose "Open" or "Install".
+
+WHEN YOU TAP THE APK ON THE PHONE
+---------------------------------
+
+The first time you install an APK from a non-Play-Store source,
+Android will ask permission. The exact wording varies by phone:
+
+  - "Install unknown apps" -> tap Settings -> turn on
+    "Allow from this source" for the app you tapped from
+    (Files, Chrome, Drive, etc.) -> Back -> Install.
+  - On older phones: Settings -> Security -> "Unknown sources".
+
+After that, tap Install. When it's done, tap Open.
+
+USING THE APP
+-------------
+
+1. The first screen asks for the API URL of your dashboard.
+   - If you're testing on Wi-Fi at home, set it to your laptop's
+     LAN IP (e.g. http://192.168.1.42:3000). To find your IP,
+     open PowerShell on the laptop and run: ipconfig
+     Look for "IPv4 Address" under your Wi-Fi adapter.
+   - The dashboard (the web app from the launcher) must be
+     running for the phone to reach it.
+2. Sign in with the same demo account, e.g.
+     daniel@callyzer.demo / demo123
+3. Tap "Grant permission" so the app can read your call log.
+4. Tap "Sync now" - new calls appear in the dashboard within
+   seconds.
+
+UNINSTALLING
+------------
+
+Long-press the Callyzer Clone icon on your home screen ->
+App info -> Uninstall. (Or Settings -> Apps -> Callyzer Clone
+-> Uninstall.)
