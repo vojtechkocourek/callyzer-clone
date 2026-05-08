@@ -6,6 +6,7 @@ import {
   getSessionRow,
   getUserRowByEmail,
   getEmployeeById,
+  type SessionKind,
 } from "./store";
 import type { Session } from "./types";
 
@@ -21,11 +22,14 @@ export async function verifyCredentials(email: string, password: string) {
   return row;
 }
 
-export async function startSession(userId: string): Promise<Session | null> {
+export async function startSession(
+  userId: string,
+  kind: SessionKind = "web",
+): Promise<Session | null> {
   const u = await getEmployeeById(userId);
   if (!u) return null;
   const token = randomToken();
-  await createSessionRow(userId, token);
+  await createSessionRow(userId, token, kind);
   return {
     token,
     userId: u.id,

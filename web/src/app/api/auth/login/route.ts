@@ -16,11 +16,12 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
-  const session = await startSession(user.id);
+  const isApi = mode === "api";
+  const session = await startSession(user.id, isApi ? "api" : "web");
   if (!session) {
     return NextResponse.json({ error: "Login failed" }, { status: 500 });
   }
-  if (mode !== "api") setSessionCookie(session.token);
+  if (!isApi) setSessionCookie(session.token);
   return NextResponse.json({
     token: session.token,
     user: {

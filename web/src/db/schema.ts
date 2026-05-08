@@ -62,11 +62,15 @@ export const calls = pgTable(
   }),
 );
 
+// kind distinguishes browser cookie sessions ("web") from long-lived device
+// tokens issued to the Android app ("api"). Each kind has its own TTL — see
+// SESSION_TTL_MS_BY_KIND in store.ts.
 export const sessions = pgTable("sessions", {
   token: text("token").primaryKey(),
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull().default("web"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -98,3 +102,49 @@ export type CallRecord = typeof calls.$inferSelect;
 export type NewCallRecord = typeof calls.$inferInsert;
 export type SessionRow = typeof sessions.$inferSelect;
 export type CallFollowup = typeof callFollowups.$inferSelect;
+
+
+// Microsoft Graph (Outlook) connection per user. One row per rep that has
+// connected their mailbox. Tokens stored as plaintext for now; rotate the
+// MICROSOFT_CLIENT_SECRET env var if any token leaks.
+export const emailAccounts = pgTable("email_accounts", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull().default("microsoft"),
+  externalEmail: text("external_email").notNull(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  // When the access token expires; refresh before this.
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  scope: text("scope").notNull().default(""),
+  connectedAt: timestamp("connected_at", { withTimezone: true }).notNull().defaultNow(),
+  // Last time we polled this mailbox successfully.
+  lastPolledAt: timestamp("last_polled_at", { withTimezone: true }),
+});
+
+// One row per outbound email we observed (and later, per inbound reply too).
+// Only metadata is stored; never subject, body, or unhashed recipient.
+export const emailEvents = pgTable(
+  "email_events",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(), // Graph message id
+    conversationId: text("conversation_id").notNull(),
+    direction: text("direction").notNull(), // "sent" | "received_reply"
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+    // SHA-256 of the recipient address, lowercased + trimmed
+    recipientHash: text("recipient_hash"),
+    // Domain only, e.g. "acme.com"
+    recipientDomain: text("recipient_domain"),
+  },
+  (t) => ({
+    extIdx: uniqueIndex("email_events_external_idx").on(t.userId, t.externalId),
+  }),
+);
+
+export type EmailAccount = typeof emailAccounts.$inferSelect;
+export type EmailEvent = typeof emailEvents.$inferSelect;

@@ -3,7 +3,7 @@
  */
 import { and, desc, eq, gte, lte, inArray } from "drizzle-orm";
 import { requireDb } from "@/db";
-import { callFollowups, calls, sessions, teams, users } from "@/db/schema";
+import { callFollowups, calls, emailAccounts, emailEvents, sessions, teams, users } from "@/db/schema";
 import type { CallRecord, CallType, Employee, Team } from "./types";
 
 const dt = (v: Date | string) => (v instanceof Date ? v.toISOString() : v);
@@ -205,11 +205,28 @@ export async function bulkInsertCalls(input: {
 
 // ---------------- Sessions ----------------
 
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+// Per-kind TTLs. "web" is short-ish (browser cookie); "api" is long because
+// it backs the Android device token, and we don't want the rep to be silently
+// logged out of the field app every week.
+export type SessionKind = "web" | "api";
 
-export async function createSessionRow(userId: string, token: string) {
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-  await requireDb().insert(sessions).values({ token, userId, expiresAt });
+const SESSION_TTL_MS_BY_KIND: Record<SessionKind, number> = {
+  web: 1000 * 60 * 60 * 24 * 7,        // 7 days
+  api: 1000 * 60 * 60 * 24 * 365,      // 365 days
+};
+
+function ttlForKind(kind: string | null | undefined): number {
+  if (kind === "api") return SESSION_TTL_MS_BY_KIND.api;
+  return SESSION_TTL_MS_BY_KIND.web;
+}
+
+export async function createSessionRow(
+  userId: string,
+  token: string,
+  kind: SessionKind = "web",
+) {
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS_BY_KIND[kind]);
+  await requireDb().insert(sessions).values({ token, userId, kind, expiresAt });
   return { token, expiresAt };
 }
 
@@ -224,6 +241,20 @@ export async function getSessionRow(token: string) {
   if (row.expiresAt.getTime() < Date.now()) {
     await requireDb().delete(sessions).where(eq(sessions.token, token));
     return null;
+  }
+  // Sliding expiration: bump expiresAt forward on each successful read so
+  // active users never get logged out. To avoid a DB write on every API
+  // call, only refresh once at least 10% of the TTL has elapsed since the
+  // last bump (≈17h for web, ≈36 days for api).
+  const ttlMs = ttlForKind(row.kind);
+  const remainingMs = row.expiresAt.getTime() - Date.now();
+  if (remainingMs < ttlMs * 0.9) {
+    const newExpires = new Date(Date.now() + ttlMs);
+    await requireDb()
+      .update(sessions)
+      .set({ expiresAt: newExpires })
+      .where(eq(sessions.token, token));
+    row.expiresAt = newExpires;
   }
   return row;
 }
@@ -396,4 +427,52 @@ export async function deleteTeam(id: string): Promise<{ ok: boolean; reason?: st
   }
   await requireDb().delete(teams).where(eq(teams.id, id));
   return { ok: true };
+}
+
+
+// ---------------- Email accounts (Outlook OAuth) ----------------
+
+export async function upsertEmailAccount(args: {
+  userId: string;
+  externalEmail: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: Date;
+  scope: string;
+}) {
+  await requireDb()
+    .insert(emailAccounts)
+    .values({
+      userId: args.userId,
+      provider: "microsoft",
+      externalEmail: args.externalEmail,
+      accessToken: args.accessToken,
+      refreshToken: args.refreshToken,
+      expiresAt: args.expiresAt,
+      scope: args.scope,
+    })
+    .onConflictDoUpdate({
+      target: emailAccounts.userId,
+      set: {
+        externalEmail: args.externalEmail,
+        accessToken: args.accessToken,
+        refreshToken: args.refreshToken,
+        expiresAt: args.expiresAt,
+        scope: args.scope,
+        connectedAt: new Date(),
+      },
+    });
+}
+
+export async function getEmailAccount(userId: string) {
+  const r = await requireDb()
+    .select()
+    .from(emailAccounts)
+    .where(eq(emailAccounts.userId, userId))
+    .limit(1);
+  return r[0] ?? null;
+}
+
+export async function deleteEmailAccount(userId: string) {
+  await requireDb().delete(emailAccounts).where(eq(emailAccounts.userId, userId));
 }
